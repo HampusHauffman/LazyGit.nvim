@@ -1,0 +1,127 @@
+*lazygit.txt*           LazyGit terminal and editor integration
+
+==============================================================================
+CONTENTS                                                     *lazygit-contents*
+
+    Usage                     |lazygit-usage|
+    External editing          |lazygit-editing|
+    Configuration             |lazygit-configuration|
+    API                       |lazygit-api|
+
+==============================================================================
+USAGE                                                           *lazygit-usage*
+
+Requires Neovim 0.10+, Git, and LazyGit on Linux or macOS. Disable other plugins
+providing require("lazygit") or :LazyGit, including kdheepak/lazygit.nvim.
+
+:LazyGit [directory]                                                 *:LazyGit*
+    Toggle a dedicated tab. Uses the current file's repository by default, or the
+    current working directory for unnamed/special buffers.
+
+:LazyGitOpen [directory]                                         *:LazyGitOpen*
+    Open or resume a session. An explicit directory can switch repositories.
+
+:LazyGitHide                                                     *:LazyGitHide*
+    Close the LazyGit tab, retaining its process and navigation state.
+
+:LazyGitClose                                                   *:LazyGitClose*
+    Stop the visible or last session and cancel its pending editor request.
+
+Inside the tab, Enter, Escape, and q belong to LazyGit. Ctrl-g closes its tab
+without stopping the process. Ctrl-\ Ctrl-n enters terminal-normal mode,
+where q also hides it.
+Reopening enters terminal-input mode automatically. Native LazyGit quit ends
+the session and closes its tab; reopening then starts a fresh process.
+
+LazyGit's edit action (normally e) opens the selected file in the parent editor.
+Its open-file action (normally o) does the same. URL opening is unchanged.
+Line-aware edit actions preserve the line number. Directory-edit actions open
+Neovim's directory browser. Opening a file closes the LazyGit tab and restores
+the originating editing tab/window. :tabclose also preserves the process for
+later use. Other editing tabs and splits are left alone. If you add unrelated
+editor splits inside the LazyGit tab, hiding preserves those windows.
+
+Unmodified file buffers are refreshed after returning from LazyGit. Modified
+buffers are never overwritten. Each repository/worktree retains its own
+session, and at most one dedicated LazyGit tab is open at once.
+
+==============================================================================
+EXTERNAL EDITING                                               *lazygit-editing*
+
+Git editor/sequence-editor invocations and LazyGit edit-and-wait actions open
+a dedicated split in the originating tab, closing the LazyGit tab while you
+edit. The external process waits without blocking Neovim. Finishing or aborting
+the edit reopens the LazyGit tab in terminal-input mode.
+
+:LazyGitEditDone                                             *:LazyGitEditDone*
+    Save the pending request's files, close its split, and resume LazyGit.
+    Run this from one of that request's buffers. Write errors leave it pending.
+
+:LazyGitEditAbort                                           *:LazyGitEditAbort*
+    Return failure to the waiting process and resume LazyGit. Unsaved text is
+    kept in its buffer. Already-saved changes are not undone.
+
+:wq also saves and finishes the editing split, not the parent editor.
+Closing a clean split finishes successfully; closing with unsaved changes
+cancels. :write alone does not finish. Do not use :cq: it exits Neovim itself.
+Toggling during an edit focuses the pending editor split.
+
+Successful edits return without an extra Enter. LazyGit always prompts for
+Enter after subprocess failures, including an aborted editor. This native
+error acknowledgment is preserved rather than disguising the failure.
+
+==============================================================================
+CONFIGURATION                                           *lazygit-configuration*
+>
+    require("lazygit").setup({
+      executable = "lazygit",
+      args = {},
+      config_files = nil,
+      window = {
+        type = "tab",
+        width = 0.9,
+        height = 0.9,
+        border = "rounded",
+        title = " LazyGit ",
+        title_pos = "center",
+        winblend = 0,
+        zindex = 50,
+      },
+      keys = { hide = "<C-g>" },
+    })
+<
+setup() is optional. Set window.type = "float" to use the optional popup layout.
+Tab mode uses the full editor area; all other window options apply only to
+floating mode. Width/height accept fractions of available space or integer
+cell counts. Set keys.hide = false to disable the hide mapping.
+
+config_files = nil honors LG_CONFIG_FILE, or loads the normal global config.yml.
+An empty list omits it; a list of paths loads those files in order. A temporary
+editor config is appended. Global configuration is never written. Repo-local
+LazyGit configs have higher precedence and can override the bridge; remove
+conflicting os.* editor/open settings there.
+
+Use config_files rather than passing config flags in args. Config paths cannot
+contain commas. New command/environment/mapping settings require closing and
+restarting existing sessions. Hiding and reopening applies new window settings.
+Floating windows also update their dimensions on resize.
+
+Use :checkhealth lazygit to diagnose requirements and explicit config paths.
+
+==============================================================================
+API                                                               *lazygit-api*
+>
+    local lazygit = require("lazygit")
+    lazygit.toggle()                  -- Toggle using current context
+    lazygit.open({ cwd = "/repo" })   -- Explicitly open/switch repository
+    lazygit.hide()                    -- Preserve process
+    lazygit.close()                   -- Stop visible/last process
+    lazygit.edit_done()               -- Save and finish external edit
+    lazygit.edit_abort()              -- Fail external edit
+    lazygit.status()                  -- Session snapshots
+<
+status() returns a list of tables with root, buffer, window, tabpage, job,
+editing, and visible fields. The window field is absent for hidden sessions.
+The tabpage field is present only for an open, dedicated LazyGit tab.
+
+ vim:tw=78:ts=8:noet:ft=help:norl:
